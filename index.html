@@ -222,7 +222,7 @@ var _bk = [];
 var _db = null;
 
 var _fbConfig = {
-  apiKey:"AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
+  apiKey: "AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
   authDomain: "barbearia-luciano-81fb4.firebaseapp.com",
   projectId: "barbearia-luciano-81fb4",
   storageBucket: "barbearia-luciano-81fb4.firebasestorage.app",
@@ -258,22 +258,34 @@ function initFirebase() {
 function loadBookings() { return _bk; }
 
 function addBooking(b, cb) {
-  _bk.push(b);
   if (_db) {
     _db.collection("agendamentos").add(b)
-      .then(function(ref){ b.id = ref.id; })
-      .catch(function(e){ console.warn(e); });
+      .then(function(ref) {
+        b.id = ref.id;
+        _bk.push(b);
+        if (cb) cb();
+      })
+      .catch(function(e) {
+        console.warn("addBooking error:", e);
+        // fallback: use local id
+        _bk.push(b);
+        if (cb) cb();
+      });
+  } else {
+    _bk.push(b);
+    if (cb) cb();
   }
-  if (cb) cb();
 }
 
 function removeBooking(id, cb) {
   _bk = _bk.filter(function(b){ return b.id !== id; });
   if (_db) {
-    _db.collection("agendamentos").doc(String(id)).delete()
-      .catch(function(e){ console.warn(e); });
+    _db.collection("agendamentos").doc(id).delete()
+      .then(function() { if (cb) cb(); })
+      .catch(function(e) { console.warn("removeBooking error:", e); if (cb) cb(); });
+  } else {
+    if (cb) cb();
   }
-  if (cb) cb();
 }
 
 function isBooked(date, time) {

@@ -222,12 +222,13 @@ var _bk = [];
 var _db = null;
 
 var _fbConfig = {
-  apiKey: "AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
+  apiKey:"AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
   authDomain: "barbearia-luciano-81fb4.firebaseapp.com",
   projectId: "barbearia-luciano-81fb4",
   storageBucket: "barbearia-luciano-81fb4.firebasestorage.app",
   messagingSenderId: "128631158582",
   appId: "1:128631158582:web:9ff44db202ffad6cf3e597"
+
 };
 
 function initFirebase() {
@@ -259,7 +260,9 @@ function loadBookings() { return _bk; }
 
 function addBooking(b, cb) {
   if (_db) {
-    _db.collection("agendamentos").add(b)
+    var bCopy = Object.assign({}, b);
+    delete bCopy.id;
+    _db.collection("agendamentos").add(bCopy)
       .then(function(ref) {
         b.id = ref.id;
         _bk.push(b);
@@ -278,11 +281,23 @@ function addBooking(b, cb) {
 }
 
 function removeBooking(id, cb) {
-  _bk = _bk.filter(function(b){ return b.id !== id; });
+  // remove from local cache
+  _bk = _bk.filter(function(b){ return String(b.id) !== String(id); });
   if (_db) {
-    _db.collection("agendamentos").doc(id).delete()
-      .then(function() { if (cb) cb(); })
-      .catch(function(e) { console.warn("removeBooking error:", e); if (cb) cb(); });
+    // find and delete all docs matching this booking
+    _db.collection("agendamentos").doc(String(id)).delete()
+      .then(function() {
+        if (cb) cb();
+      })
+      .catch(function(e) {
+        console.warn("removeBooking error:", e);
+        // fallback: query by id field
+        _db.collection("agendamentos").where("id", "==", id).get()
+          .then(function(snap) {
+            snap.forEach(function(doc){ doc.ref.delete(); });
+            if (cb) cb();
+          }).catch(function(){ if (cb) cb(); });
+      });
   } else {
     if (cb) cb();
   }
@@ -464,7 +479,7 @@ function renderAgenda(){
   var today=new Date().toISOString().split("T")[0];
   var list;
   if(agendaFilter==="hoje") list=all.filter(function(b){return b.date===today;});
-  else if(agendaFilter==="futuros") list=all.filter(function(b){return b.date>=today;});
+  else if(agendaFilter==="futuros") list=all.filter(function(b){return b.date>today;});
   else list=all;
   list=list.slice().sort(function(a,b){return a.date===b.date?a.time.localeCompare(b.time):a.date.localeCompare(b.date);});
 
@@ -483,10 +498,13 @@ function renderAgenda(){
         '<button class="btn-cancel" data-id="'+b.id+'">Cancelar agendamento</button>'+
       '</div>'+
       '<div style="text-align:right"><div class="appt-price">R$ '+b.total.toFixed(2).replace(".",",")+'</div></div>';
-    card.querySelector(".btn-cancel").addEventListener("click",function(){
-      if(!confirm("Cancelar o agendamento de "+b.name+" ("+b.time+" - "+ds+")?"))return;
-      removeBooking(b.id, function(){ renderAgenda(); renderSlots(); updateAgendaBadge(); });
-    });
+    (function(booking){
+      card.querySelector(".btn-cancel").addEventListener("click",function(){
+        var bid = card.querySelector(".btn-cancel").dataset.id;
+        if(!confirm("Cancelar o agendamento de "+booking.name+" ("+booking.time+" - "+ds+")?"))return;
+        removeBooking(bid, function(){ renderAgenda(); renderSlots(); updateAgendaBadge(); });
+      });
+    })(b);
     wrap.appendChild(card);
   });
 }

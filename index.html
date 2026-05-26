@@ -222,7 +222,7 @@ var _bk = [];
 var _db = null;
 
 var _fbConfig = {
-  apiKey: "AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
+  apiKey:"AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
   authDomain: "barbearia-luciano-81fb4.firebaseapp.com",
   projectId: "barbearia-luciano-81fb4",
   storageBucket: "barbearia-luciano-81fb4.firebasestorage.app",
@@ -244,6 +244,14 @@ function initFirebase() {
       renderSlots();
       updateAgendaBadge();
     }).catch(function(e) { console.warn('Firebase load:', e); });
+    loadSettings(function(cfg) {
+      if (!cfg) return;
+      if (cfg.name)    { document.getElementById("bname").textContent = cfg.name; document.title = cfg.name + " Barbearia"; }
+      if (cfg.address) document.getElementById("iaddr").textContent  = cfg.address;
+      if (cfg.phone)   document.getElementById("iphone").textContent = cfg.phone;
+      if (cfg.hours)   document.getElementById("ihours").textContent = cfg.hours;
+      if (cfg.services && cfg.services.length) { services = cfg.services; renderCards(); }
+    });
   } catch(e) { console.warn('Firebase init:', e); }
 }
 
@@ -270,6 +278,19 @@ function removeBooking(id, cb) {
 
 function isBooked(date, time) {
   return _bk.some(function(b){ return b.date === date && b.time === time; });
+}
+
+function saveSettings(data) {
+  if (!_db) return;
+  _db.collection("config").doc("settings").set(data)
+    .catch(function(e){ console.warn("saveSettings:", e); });
+}
+
+function loadSettings(cb) {
+  if (!_db) { if (cb) cb(null); return; }
+  _db.collection("config").doc("settings").get()
+    .then(function(doc){ if (cb) cb(doc.exists ? doc.data() : null); })
+    .catch(function(e){ console.warn("loadSettings:", e); if (cb) cb(null); });
 }
 
 /* ── data mínima ──────────────────────────────────── */
@@ -400,7 +421,17 @@ document.getElementById("btns").addEventListener("click",function(){
     var n=row.querySelector(".fn").value.trim(),d=row.querySelector(".fd").value.trim(),p=parseFloat(row.querySelector(".fp").value)||0,id=Number(row.dataset.id);
     if(n)upd.push({id:id,name:n,duration:d||"30 min",price:p});
   });
-  services=upd;document.getElementById("madmin").classList.remove("open");sel.clear();renderCards();renderSlots();
+  services=upd;
+  saveSettings({
+    name:    document.getElementById("bname").textContent,
+    address: document.getElementById("iaddr").textContent,
+    phone:   document.getElementById("iphone").textContent,
+    hours:   document.getElementById("ihours").textContent,
+    services: upd
+  });
+  document.getElementById("madmin").classList.remove("open");
+  sel.clear();renderCards();renderSlots();
+  alert("Altera\u00e7\u00f5es salvas com sucesso! \u2705");
 });
 
 /* ── modal agenda ─────────────────────────────────── */

@@ -202,7 +202,7 @@ header{background:var(--dark);padding:1.25rem 2rem;display:flex;align-items:cent
 </div>
 
 <script>
-var HOURS_WD = ["09:00","09:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30"];
+var HOURS_WD  = ["09:00","09:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30"];
 var HOURS_SAT = ["09:00","09:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30"];
 function getHours(d){var w=new Date(d+"T12:00:00").getDay();return w===6?HOURS_SAT:HOURS_WD;}
 function isClosed(d){var w=new Date(d+"T12:00:00").getDay();return w===0||w===1;}
@@ -217,12 +217,12 @@ var services = [
 ];
 var sel = new Set(), uid = 100, selectedTime = null, agendaFilter = "todos";
 
-// ── Armazenamento (Firebase + fallback local) ───────────
+// ── Firebase + fallback local ──
 var _bk = [];
 var _db = null;
 
-var firebaseConfig = {
-  apiKey: ""AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
+var _fbConfig = {
+  apiKey: "AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
   authDomain: "barbearia-luciano-81fb4.firebaseapp.com",
   projectId: "barbearia-luciano-81fb4",
   storageBucket: "barbearia-luciano-81fb4.firebasestorage.app",
@@ -232,9 +232,9 @@ var firebaseConfig = {
 
 function initFirebase() {
   try {
-    if (typeof firebase === 'undefined') return;
-    if (firebaseConfig.apiKey === "COLE_AQUI_apiKey") return;
-    firebase.initializeApp(firebaseConfig);
+    if (typeof firebase === "undefined") return;
+    if (_fbConfig.apiKey === "COLE_AQUI_apiKey") return;
+    firebase.initializeApp(_fbConfig);
     _db = firebase.firestore();
     _db.collection("agendamentos").get().then(function(snap) {
       _bk = [];
@@ -243,22 +243,34 @@ function initFirebase() {
       });
       renderSlots();
       updateAgendaBadge();
-    }).catch(function(e){ console.warn("Firebase load:", e); });
-  } catch(e) { console.warn("Firebase init:", e); }
+    }).catch(function(e) { console.warn('Firebase load:', e); });
+  } catch(e) { console.warn('Firebase init:', e); }
 }
 
 function loadBookings() { return _bk; }
-function addBooking(b, callback) {
+
+function addBooking(b, cb) {
   _bk.push(b);
-  if (_db) { _db.collection("agendamentos").add(b).then(function(ref){ b.id=ref.id; }).catch(function(e){console.warn(e);}); }
-  if (callback) callback();
+  if (_db) {
+    _db.collection("agendamentos").add(b)
+      .then(function(ref){ b.id = ref.id; })
+      .catch(function(e){ console.warn(e); });
+  }
+  if (cb) cb();
 }
-function removeBooking(id, callback) {
+
+function removeBooking(id, cb) {
   _bk = _bk.filter(function(b){ return b.id !== id; });
-  if (_db) { _db.collection("agendamentos").doc(String(id)).delete().catch(function(e){console.warn(e);}); }
-  if (callback) callback();
+  if (_db) {
+    _db.collection("agendamentos").doc(String(id)).delete()
+      .catch(function(e){ console.warn(e); });
+  }
+  if (cb) cb();
 }
-function isBooked(date,time){return _bk.some(function(b){return b.date===date&&b.time===time;});}
+
+function isBooked(date, time) {
+  return _bk.some(function(b){ return b.date === date && b.time === time; });
+}
 
 /* ── data mínima ──────────────────────────────────── */
 document.getElementById("dinput").min=new Date().toISOString().split("T")[0];
@@ -283,7 +295,10 @@ function renderSlots(){
   var date=document.getElementById("dinput").value;
   var wrap=document.getElementById("slots");
   if(!date){wrap.innerHTML='<p style="color:var(--muted);font-size:.83rem;">Selecione uma data primeiro.</p>';updateSum();return;}
-  if(isClosed(date)){wrap.innerHTML='<p style="color:#b03a3a;font-size:.83rem;">Fechado neste dia. Atendemos ter\u00e7a a sexta (9h\u201319h) e s\u00e1bado (9h\u201318h).</p>';updateSum();return;}
+  if(isClosed(date)){
+    wrap.innerHTML='<p style="color:#b03a3a;font-size:.83rem;">Fechado. Atendemos ter\u00e7a a sexta (9h\u201319h) e s\u00e1bado (9h\u201318h).</p>';
+    updateSum();return;
+  }
   var hours=getHours(date);
   wrap.innerHTML="";
   hours.forEach(function(h){

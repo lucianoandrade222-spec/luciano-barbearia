@@ -228,7 +228,6 @@ var _fbConfig = {
   storageBucket: "barbearia-luciano-81fb4.firebasestorage.app",
   messagingSenderId: "128631158582",
   appId: "1:128631158582:web:9ff44db202ffad6cf3e597"
-
 };
 
 function initFirebase() {
@@ -238,9 +237,11 @@ function initFirebase() {
     firebase.initializeApp(_fbConfig);
     _db = firebase.firestore();
     _db.collection("agendamentos").get().then(function(snap) {
-      _bk = [];
+      _bk = []; // reset to avoid duplicates
       snap.forEach(function(doc) {
-        _bk.push(Object.assign({id: doc.id}, doc.data()));
+        var data = doc.data();
+        delete data.id; // remove any stored id field
+        _bk.push(Object.assign({id: doc.id}, data));
       });
       renderSlots();
       updateAgendaBadge();
@@ -304,7 +305,7 @@ function removeBooking(id, cb) {
 }
 
 function isBooked(date, time) {
-  return _bk.some(function(b){ return b.date === date && b.time === time; });
+  return _bk.some(function(b){ return String(b.date) === String(date) && String(b.time) === String(time); });
 }
 
 function saveSettings(data) {

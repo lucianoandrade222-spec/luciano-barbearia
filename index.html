@@ -219,6 +219,7 @@ var sel = new Set(), uid = 100, selectedTime = null, agendaFilter = "todos";
 
 // ── Firebase + fallback local ──
 var _bk = [];
+function localDateStr(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 var _db = null;
 
 var _fbConfig = {
@@ -322,7 +323,7 @@ function loadSettings(cb) {
 }
 
 /* ── data mínima ──────────────────────────────────── */
-document.getElementById("dinput").min=new Date().toISOString().split("T")[0];
+document.getElementById("dinput").min=localDateStr();
 
 /* ── cartões ──────────────────────────────────────── */
 function renderCards(){
@@ -477,7 +478,7 @@ function setFilter(f){
 
 function renderAgenda(){
   var all=loadBookings();
-  var today=new Date().toISOString().split("T")[0];
+  var today=localDateStr();
   var list;
   if(agendaFilter==="hoje") list=all.filter(function(b){return b.date===today;});
   else if(agendaFilter==="futuros") list=all.filter(function(b){return b.date>today;});
@@ -511,7 +512,7 @@ function renderAgenda(){
 }
 
 function updateAgendaBadge(){
-  var today=new Date().toISOString().split("T")[0];
+  var today=localDateStr();
   var count=loadBookings().filter(function(b){return b.date>=today;}).length;
   var badge=document.getElementById("agenda-badge");
   badge.textContent=count;

@@ -201,9 +201,21 @@ header{background:var(--dark);padding:1rem 1rem;display:flex;align-items:center;
   </div>
 </div>
 
+<!-- PASSWORD MODAL -->
+<div class="pwd-back" id="pwd-back">
+  <div class="pwd-box">
+    <h3>&#128274; Acesso restrito</h3>
+    <p>Digite a senha para continuar</p>
+    <input type="password" class="pwd-input" id="pwd-input" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" maxlength="20">
+    <div class="pwd-err" id="pwd-err">Senha incorreta. Tente novamente.</div>
+    <button class="pwd-btn" id="pwd-btn">Entrar</button>
+    <button class="pwd-cancel" id="pwd-cancel">Cancelar</button>
+  </div>
+</div>
+
 <script>
-var HOURS_WD  = ["09:00","09:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30"];
-var HOURS_SAT = ["09:00","09:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30"];
+var HOURS_WD  = ["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30"];
+var HOURS_SAT = ["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30"];
 function getHours(d){var w=new Date(d+"T12:00:00").getDay();return w===6?HOURS_SAT:HOURS_WD;}
 function isClosed(d){var w=new Date(d+"T12:00:00").getDay();return w===0||w===1;}
 
@@ -219,11 +231,46 @@ var sel = new Set(), uid = 100, selectedTime = null, agendaFilter = "todos";
 
 // ── Firebase + fallback local ──
 var _bk = [];
+var ADMIN_PASS = "luciano2025";
+var _isAuth = false;
+var _pendingAction = null;
+
+function requireAuth(action){
+  if(_isAuth){if(action==="admin")openAdminPanel();else openAgendaPanel();return;}
+  _pendingAction=action;
+  document.getElementById("pwd-input").value="";
+  document.getElementById("pwd-err").style.display="none";
+  document.getElementById("pwd-back").classList.add("open");
+  setTimeout(function(){document.getElementById("pwd-input").focus();},100);
+}
+function checkPassword(){
+  var val=document.getElementById("pwd-input").value;
+  if(val===ADMIN_PASS){
+    _isAuth=true;
+    document.getElementById("pwd-back").classList.remove("open");
+    if(_pendingAction==="admin")openAdminPanel();else openAgendaPanel();
+  } else {
+    document.getElementById("pwd-err").style.display="block";
+    document.getElementById("pwd-input").value="";
+    document.getElementById("pwd-input").focus();
+  }
+}
+function openAdminPanel(){
+  document.getElementById("ename").value=document.getElementById("bname").textContent;
+  document.getElementById("eaddr").value=document.getElementById("iaddr").textContent;
+  document.getElementById("ephone").value=document.getElementById("iphone").textContent;
+  document.getElementById("ehours").value=document.getElementById("ihours").textContent;
+  buildList();document.getElementById("madmin").classList.add("open");
+}
+function openAgendaPanel(){
+  renderAgenda();document.getElementById("magenda").classList.add("open");
+}
+
 function localDateStr(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 var _db = null;
 
 var _fbConfig = {
-  apiKey:"AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
+  apiKey: "AIzaSyAGlan96X52OkvpD8R1khueBo-mz0z7tbc",
   authDomain: "barbearia-luciano-81fb4.firebaseapp.com",
   projectId: "barbearia-luciano-81fb4",
   storageBucket: "barbearia-luciano-81fb4.firebasestorage.app",
@@ -312,6 +359,7 @@ function isBooked(date, time) {
 function saveSettings(data) {
   if (!_db) return;
   _db.collection("config").doc("settings").set(data)
+    .then(function(){ console.log("Settings saved!"); })
     .catch(function(e){ console.warn("saveSettings:", e); });
 }
 
@@ -404,17 +452,15 @@ document.getElementById("btnok").addEventListener("click",function(){
 renderSlots();
 updateAgendaBadge();
 initFirebase();
+document.getElementById("pwd-btn").addEventListener("click",checkPassword);
+document.getElementById("pwd-cancel").addEventListener("click",function(){document.getElementById("pwd-back").classList.remove("open");});
+document.getElementById("pwd-input").addEventListener("keydown",function(e){if(e.key==="Enter")checkPassword();});
+document.getElementById("pwd-back").addEventListener("click",function(e){if(e.target===this)this.classList.remove("open");});
 });
 document.getElementById("btnfc").addEventListener("click",function(){document.getElementById("sov").classList.remove("open");});
 
 /* ── modal gerenciar ──────────────────────────────── */
-document.getElementById("btnger").addEventListener("click",function(){
-  document.getElementById("ename").value=document.getElementById("bname").textContent;
-  document.getElementById("eaddr").value=document.getElementById("iaddr").textContent;
-  document.getElementById("ephone").value=document.getElementById("iphone").textContent;
-  document.getElementById("ehours").value=document.getElementById("ihours").textContent;
-  buildList();document.getElementById("madmin").classList.add("open");
-});
+document.getElementById("btnger").addEventListener("click",function(){requireAuth("admin");});
 document.getElementById("btnxa").addEventListener("click",function(){document.getElementById("madmin").classList.remove("open");});
 document.getElementById("madmin").addEventListener("click",function(e){if(e.target===this)this.classList.remove("open");});
 
@@ -458,15 +504,16 @@ document.getElementById("btns").addEventListener("click",function(){
     hours:   document.getElementById("ihours").textContent,
     services: upd
   });
-  document.getElementById("madmin").classList.remove("open");
   sel.clear();renderCards();renderSlots();
-  alert("Altera\u00e7\u00f5es salvas com sucesso! \u2705");
+  var _btn=document.getElementById("btns");
+  var _orig=_btn.textContent;
+  _btn.textContent="Salvo! ✅";
+  _btn.style.background="#27ae60";
+  setTimeout(function(){_btn.textContent=_orig;_btn.style.background="";},2500);
 });
 
 /* ── modal agenda ─────────────────────────────────── */
-document.getElementById("btnagenda").addEventListener("click",function(){
-  renderAgenda();document.getElementById("magenda").classList.add("open");
-});
+document.getElementById("btnagenda").addEventListener("click",function(){requireAuth("agenda");});
 document.getElementById("btnxa2").addEventListener("click",function(){document.getElementById("magenda").classList.remove("open");});
 document.getElementById("magenda").addEventListener("click",function(e){if(e.target===this)this.classList.remove("open");});
 
@@ -524,6 +571,10 @@ renderCards();
 renderSlots();
 updateAgendaBadge();
 initFirebase();
+document.getElementById("pwd-btn").addEventListener("click",checkPassword);
+document.getElementById("pwd-cancel").addEventListener("click",function(){document.getElementById("pwd-back").classList.remove("open");});
+document.getElementById("pwd-input").addEventListener("keydown",function(e){if(e.key==="Enter")checkPassword();});
+document.getElementById("pwd-back").addEventListener("click",function(e){if(e.target===this)this.classList.remove("open");});
 </script>
 </body>
 </html>

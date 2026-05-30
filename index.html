@@ -398,9 +398,20 @@ function renderSlots(){
     updateSum();return;
   }
   var hours=getHours(date);
+  var now=new Date();
+  var todaySlot=localDateStr();
+  var isToday=(date===todaySlot);
   wrap.innerHTML="";
   hours.forEach(function(h){
     var booked=isBooked(date,h);
+    // bloqueia horarios com menos de 1 hora de antecedencia
+    if(!booked && isToday){
+      var parts=h.split(":");
+      var slotTime=new Date();
+      slotTime.setHours(parseInt(parts[0]),parseInt(parts[1]),0,0);
+      var diffMin=(slotTime-now)/60000;
+      if(diffMin<60) booked=true;
+    }
     var div=document.createElement("div");
     div.className="slot"+(booked?" blocked":"");
     div.textContent=h;

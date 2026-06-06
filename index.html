@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+F<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -231,7 +231,7 @@ var sel = new Set(), uid = 100, selectedTime = null, agendaFilter = "todos";
 
 // ── Firebase + fallback local ──
 var _bk = [];
-var ADMIN_PASS = "1425";
+var ADMIN_PASS = "luciano2025";
 var _isAuth = false;
 var _pendingAction = null;
 
@@ -300,7 +300,7 @@ function initFirebase() {
       if (cfg.address) document.getElementById("iaddr").textContent  = cfg.address;
       if (cfg.phone)   document.getElementById("iphone").textContent = cfg.phone;
       if (cfg.hours)   document.getElementById("ihours").textContent = cfg.hours;
-      if (cfg.services && cfg.services.length) { services = cfg.services; renderCards(); }
+      if (cfg.services && cfg.services.length) { services = cfg.services; sel.clear(); renderCards(); }
     });
   } catch(e) { console.warn('Firebase init:', e); }
 }
@@ -377,11 +377,13 @@ document.getElementById("dinput").min=localDateStr();
 function renderCards(){
   var g=document.getElementById("sgrid");
   g.innerHTML="";
-  services.forEach(function(s){
+  services.forEach(function(s,i){
+    var uid=s.name; // use name as stable unique key
+    s._uid=uid;
     var d=document.createElement("div");
-    d.className="card"+(sel.has(s.id)?" on":"");
+    d.className="card"+(sel.has(uid)?" on":"");
     d.innerHTML='<div class="ck">&#10003;</div><div class="sname">'+s.name+'</div><div class="sdur">&#9201; '+s.duration+'</div><div class="sprice">R$ '+Number(s.price).toFixed(2).replace(".",",")+'</div>';
-    (function(id){d.addEventListener("click",function(){if(sel.has(id))sel.delete(id);else sel.add(id);renderCards();});})(s.id);
+    (function(uid){d.addEventListener("click",function(){if(sel.has(uid))sel.delete(uid);else sel.add(uid);renderCards();});})(uid);
     g.appendChild(d);
   });
   updateSum();
@@ -427,7 +429,7 @@ function renderSlots(){
 /* ── resumo ───────────────────────────────────────── */
 function updateSum(){
   var box=document.getElementById("sumbox");
-  var ch=services.filter(function(s){return sel.has(s.id);});
+  var ch=services.filter(function(s){return sel.has(s._uid);});
   var ok=ch.length>0&&document.getElementById("cname").value.trim()&&document.getElementById("cphone").value.trim()&&document.getElementById("dinput").value&&selectedTime;
   document.getElementById("btnok").disabled=!ok;
   if(!ch.length){box.innerHTML='<div class="sumt">Resumo do agendamento</div><div class="nos">Nenhum servi\u00e7o selecionado ainda</div>';return;}
@@ -443,7 +445,7 @@ document.getElementById("btnok").addEventListener("click",function(){
   var phone=document.getElementById("cphone").value.trim();
   var date=document.getElementById("dinput").value;
   var obs=document.getElementById("cobs").value.trim();
-  var ch=services.filter(function(s){return sel.has(s.id);});
+  var ch=services.filter(function(s){return sel.has(s._uid);});
   var tot=ch.reduce(function(a,s){return a+Number(s.price);},0);
   var ds=new Date(date+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
 
@@ -488,7 +490,7 @@ function buildList(){
   services.forEach(function(s){
     var row=document.createElement("div");row.className="svcr";row.dataset.id=s.id;
     row.innerHTML='<input type="text" class="fn" value="'+s.name+'" placeholder="Nome"><input type="text" class="fd" value="'+s.duration+'" placeholder="30 min"><input type="number" class="fp" value="'+s.price+'" min="0" step="0.5"><button class="btnd">&#10005;</button>';
-    (function(sid){row.querySelector(".btnd").addEventListener("click",function(){services=services.filter(function(x){return x.id!==sid;});sel.delete(sid);buildList();});})(s.id);
+    (function(sname){row.querySelector(".btnd").addEventListener("click",function(){services=services.filter(function(x){return x.name!==sname;});sel.delete(sname);buildList();});})(s.name);
     w.appendChild(row);
   });
 }
